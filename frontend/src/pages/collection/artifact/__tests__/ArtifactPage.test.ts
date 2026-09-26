@@ -2,6 +2,8 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ArtifactPage from '../index.vue'
 
+const ARTIFACT_ID = '01a07c0b-be85-7214-93fd-c440ec0123d9'
+
 const harness = vi.hoisted(() => ({
   artifacts: {
     currentArtifact: null,
@@ -14,6 +16,12 @@ const harness = vi.hoisted(() => ({
     resetCurrentModelMetadata: vi.fn(),
     resetCurrentModelHtmlBlobUrl: vi.fn(),
     resetExperimentSnapshotProvider: vi.fn(),
+  },
+  params: {
+    organizationId: 'organization',
+    id: 'orbit',
+    collectionId: 'collection',
+    artifactId: '',
   },
   toastAdd: vi.fn(),
 }))
@@ -30,14 +38,7 @@ vi.mock('vue-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-router')>()
   return {
     ...actual,
-    useRoute: () => ({
-      params: {
-        organizationId: 'organization',
-        id: 'orbit',
-        collectionId: 'collection',
-        artifactId: 'abc',
-      },
-    }),
+    useRoute: () => ({ params: harness.params }),
     useRouter: () => ({ push: vi.fn() }),
   }
 })
@@ -46,8 +47,8 @@ vi.mock('primevue', async (importOriginal) => {
   return { ...actual, useToast: () => ({ add: harness.toastAdd }) }
 })
 
-async function mountWithLoadError(error: unknown) {
-  harness.artifacts.getArtifact.mockRejectedValue(error)
+async function mountArtifactPage(artifactId: string) {
+  harness.params.artifactId = artifactId
   shallowMount(ArtifactPage, { global: { stubs: { RouterView: true } } })
   await flushPromises()
 }
@@ -57,40 +58,29 @@ describe('ArtifactPage', () => {
     vi.clearAllMocks()
   })
 
-  it('reports a malformed artifact id as not found', async () => {
-    await mountWithLoadError({
-      message: 'Request failed with status code 422',
-      response: {
-        status: 422,
-        data: {
-          detail: [
-            {
-              type: 'uuid_parsing',
-              loc: ['path', 'artifact_id'],
-              msg: 'Input should be a valid UUID, invalid length: expected length 32 for simple format, found 3',
-            },
-          ],
-        },
-      },
+  it('rejects a malformed artifact id without requesting it', async () => {
+    await mountArtifactPage('abc')
+
+    expect(harness.artifacts.getArtifact).not.toHaveBeenCalled()
+    expect(harness.toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', detail: 'Invalid artifact ID' }),
+    )
+  })
+
+  it('shows the backend message when the artifact does not exist', async () => {
+    harness.artifacts.getArtifact.mockRejectedValue({
+      response: { status: 404, data: { detail: 'Artifact not found' } },
     })
 
-    expect(harness.artifacts.getArtifact).toHaveBeenCalledWith('abc', {
+    await mountArtifactPage(ARTIFACT_ID)
+
+    expect(harness.artifacts.getArtifact).toHaveBeenCalledWith(ARTIFACT_ID, {
       organizationId: 'organization',
       orbitId: 'orbit',
       collectionId: 'collection',
     })
     expect(harness.toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', detail: 'Artifact not found' }),
-    )
-  })
-
-  it('shows the backend message for other load errors', async () => {
-    await mountWithLoadError({
-      response: { status: 403, data: { detail: 'Insufficient permissions' } },
-    })
-
-    expect(harness.toastAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ severity: 'error', detail: 'Insufficient permissions' }),
     )
   })
 })
