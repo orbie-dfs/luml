@@ -159,40 +159,23 @@ export const getLastUpdateText = (date: string | number | Date) => {
 }
 
 export interface ApiError {
-  message?: unknown
+  message?: string
   code?: string
   name?: string
   details?: string
   response?: {
     status?: number
-    detail?: unknown
+    detail?: { message?: string }
     data?: {
-      detail?: unknown
+      detail?: string
       conflicting_files?: string[]
     }
   }
 }
 
-const getDetailMessage = (detail: unknown): string | undefined => {
-  if (typeof detail === 'string') return detail || undefined
-  if (Array.isArray(detail)) {
-    const messages = detail.map(getDetailMessage).filter((value) => value !== undefined)
-    return messages.length ? messages.join('; ') : undefined
-  }
-  if (!detail || typeof detail !== 'object') return undefined
-
-  const record = detail as Record<string, unknown>
-  return getDetailMessage(record.message) ?? getDetailMessage(record.msg)
-}
-
-export const getErrorMessage = (error: unknown, message = 'Something went wrong'): string => {
+export const getErrorMessage = (error: unknown, message = 'Something went wrong') => {
   const err = error as ApiError
-  return (
-    getDetailMessage(err?.response?.detail) ??
-    getDetailMessage(err?.response?.data?.detail) ??
-    getDetailMessage(err?.message) ??
-    message
-  )
+  return err?.response?.detail?.message || err?.response?.data?.detail || err?.message || message
 }
 
 export const getNumberOrString = (string: string | number) => {
