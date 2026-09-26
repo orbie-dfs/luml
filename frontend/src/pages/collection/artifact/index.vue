@@ -84,7 +84,7 @@ import { useOrbitsStore } from '@/stores/orbits'
 import { PermissionEnum } from '@/lib/api/api.interfaces'
 import { useCollectionsStore } from '@/stores/collections'
 import { simpleErrorToast } from '@/lib/primevue/data/toasts'
-import { getErrorMessage } from '@/helpers/helpers'
+import { getErrorMessage, type ApiError } from '@/helpers/helpers'
 import { useDatasetsStore } from '@/stores/datasets'
 import ArtifactTabs from '@/components/orbits/tabs/registry/collection/artifact/ArtifactTabs.vue'
 import DeploymentsCreateModal from '@/components/deployments/create/DeploymentsCreateModal.vue'
@@ -220,7 +220,10 @@ async function onArtifactIdChange(artifactId: string | string[] | null) {
     const artifact = await artifactsStore.getArtifact(artifactId, requestInfo)
     artifactsStore.setCurrentArtifact(artifact)
   } catch (e) {
-    const message = getErrorMessage(e, 'Failed to set current artifact')
+    const message =
+      (e as ApiError)?.response?.status === 422
+        ? 'Artifact not found'
+        : getErrorMessage(e, 'Failed to set current artifact')
     toast.add(simpleErrorToast(message))
   }
 }
