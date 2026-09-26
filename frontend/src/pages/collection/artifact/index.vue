@@ -85,7 +85,6 @@ import { PermissionEnum } from '@/lib/api/api.interfaces'
 import { useCollectionsStore } from '@/stores/collections'
 import { simpleErrorToast } from '@/lib/primevue/data/toasts'
 import { getErrorMessage } from '@/helpers/helpers'
-import { z } from 'zod'
 import { useDatasetsStore } from '@/stores/datasets'
 import ArtifactTabs from '@/components/orbits/tabs/registry/collection/artifact/ArtifactTabs.vue'
 import DeploymentsCreateModal from '@/components/deployments/create/DeploymentsCreateModal.vue'
@@ -213,10 +212,6 @@ async function onArtifactIdChange(artifactId: string | string[] | null) {
   try {
     artifactsStore.resetCurrentArtifact()
     if (typeof artifactId !== 'string') return
-    if (!z.guid().safeParse(artifactId).success) {
-      toast.add(simpleErrorToast('Invalid artifact ID'))
-      return
-    }
     const requestInfo = {
       organizationId: route.params.organizationId as string,
       orbitId: route.params.id as string,
